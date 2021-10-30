@@ -1,0 +1,3 @@
+[submodule "handwriting"]
+	path = handwriting
+	url = git@github.com:pnshiralkar/text-to-handwriting.git
