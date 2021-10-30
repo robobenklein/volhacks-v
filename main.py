@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import json
+import pickle
 
 import pyaudio
 import wave
@@ -16,12 +17,38 @@ import kbd
 
 load_dotenv()  # take environment variables from .env.
 
+import argparse
+import os
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--model', dest='model_path', type=str, default=os.path.join('pretrained', 'model-29'),
+                    help='(optional) DL model to use')
+parser.add_argument('--style', dest='style', type=int, default=0, help='Style of handwriting (1 to 7)')
+parser.add_argument('--bias', dest='bias', type=float, default=0.9,
+                    help='Bias in handwriting. More bias is more unclear handwriting (0.00 to 1.00)')
+parser.add_argument('--force', dest='force', action='store_true', default=False)
+parser.add_argument('--color', dest='color_text', type=str, default='0,0,150',
+                    help='Color of handwriting in RGB format')
+parser.add_argument('--output', dest='output', type=str, default='./handwritten.pdf',
+                    help='Output PDF file path and name')
+args = parser.parse_args()
+
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
 # RECORD_SECONDS = 5
 WAVE_OUTPUT_FILENAME = "output.wav"
+
+
+import matplotlib
+# import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
+import generate
+
+matplotlib.use('agg')
 
 p = pyaudio.PyAudio()
 
@@ -135,3 +162,25 @@ print(json.dumps((response.json()), indent=2))
 fulltext_string = "\n\n".join(x['text'] for x in response.json()["paragraphs"])
 
 print(f"Full text:\n\n{fulltext_string}")
+
+def writetext(text):
+    with open(os.path.join('data', 'translation.pkl'), 'rb') as file:
+        translation = pickle.load(file)
+    rev_translation = {v: k for k, v in translation.items()}
+    charset = [rev_translation[i] for i in range(len(rev_translation))]
+    charset[0] = ''
+
+    config = tf.ConfigProto(
+        device_count={'GPU': 0}
+    )
+
+    with tf.Session(config=config) as sess:
+        saver = tf.train.import_meta_graph(args.model_path + '.meta')
+        saver.restore(sess, args.model_path)
+
+        print("\n\nInitialization Complete!\n\n\n\n")
+
+        color = [int(i) for i in args.color_text.replace(' ', '').split(',')]
+        pdf = generate.generate(text.replace('1', 'I'), args, sess, translation, color[:3])
+
+writetext(fulltext_string)
