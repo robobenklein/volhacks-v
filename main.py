@@ -10,6 +10,7 @@ import pyaudio
 import wave
 import requests
 from dotenv import load_dotenv
+from twilio.rest import Client
 
 import kbd
 
@@ -184,3 +185,18 @@ def writetext(text):
         pdf = generate.generate(text.replace('1', 'I'), args, sess, translation, color[:3])
 
 writetext(fulltext_string)
+
+# Find your Account SID and Auth Token at twilio.com/console
+# and set the environment variables. See http://twil.io/secure
+account_sid = os.environ['TWILIO_ACCOUNT_SID']
+auth_token = os.environ['TWILIO_AUTH_TOKEN']
+client = Client(account_sid, auth_token)
+
+message = client.messages \
+                .create(
+                     body="Your latest AutoNote is ready to view!",
+                     from_='+15076985168',
+                     to=os.environ['TARGET_NUMBER']
+                 )
+
+print(message.sid)
